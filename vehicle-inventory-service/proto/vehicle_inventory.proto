@@ -1,0 +1,140 @@
+syntax = "proto3";
+
+package vehicle_inventory;
+
+option go_package = "github.com/nurashi/Car-Rental-Platform/vehicle-inventory/proto";
+
+import "google/protobuf/empty.proto";
+
+service VehicleInventoryService {
+  rpc CreateVehicle(CreateVehicleRequest) returns (Vehicle);
+  rpc GetVehicle(GetVehicleRequest) returns (Vehicle);
+  rpc UpdateVehicle(UpdateVehicleRequest) returns (Vehicle);
+  rpc DeleteVehicle(DeleteVehicleRequest) returns (google.protobuf.Empty);
+  rpc ListVehicles(ListVehiclesRequest) returns (ListVehiclesResponse);
+  rpc UpdateVehicleStatus(UpdateVehicleStatusRequest) returns (Vehicle);
+
+  rpc CreateLocation(CreateLocationRequest) returns (Location);
+  rpc GetLocation(GetLocationRequest) returns (Location);
+  rpc ListLocations(ListLocationsRequest) returns (ListLocationsResponse);
+
+  rpc CreateMaintenanceRecord(CreateMaintenanceRecordRequest) returns (MaintenanceRecord);
+  rpc GetMaintenanceRecord(GetMaintenanceRecordRequest) returns (MaintenanceRecord);
+  rpc ListMaintenanceRecords(ListMaintenanceRecordsRequest) returns (ListMaintenanceRecordsResponse);
+}
+
+message Vehicle {
+  string id = 1;
+  string make = 2;
+  string model = 3;
+  int32 year = 4;
+  string license_plate = 5;
+  string status = 6;
+  string current_location_id = 7;
+  int32 mileage = 8;
+}
+
+message CreateVehicleRequest {
+  string make = 1;
+  string model = 2;
+  int32 year = 3;
+  string license_plate = 4;
+  string status = 5;
+  string current_location_id = 6;
+  int32 mileage = 7;
+}
+
+message GetVehicleRequest {
+  string id = 1;
+}
+
+message UpdateVehicleRequest {
+  string id = 1;
+  string make = 2;
+  string model = 3;
+  int32 year = 4;
+  string license_plate = 5;
+  string status = 6;
+  string current_location_id = 7;
+  int32 mileage = 8;
+}
+
+message DeleteVehicleRequest {
+  string id = 1;
+}
+
+message ListVehiclesRequest {
+  int32 page = 1;
+  int32 limit = 2;
+}
+
+message ListVehiclesResponse {
+  repeated Vehicle vehicles = 1;
+  int32 total = 2;
+}
+
+message UpdateVehicleStatusRequest {
+  string id = 1;
+  string status = 2;
+}
+
+message Location {
+  string id = 1;
+  string name = 2;
+  string address = 3;
+  int32 capacity = 4;
+}
+
+message CreateLocationRequest {
+  string name = 1;
+  string address = 2;
+  int32 capacity = 3;
+}
+
+message GetLocationRequest {
+  string id = 1;
+}
+
+message ListLocationsRequest {
+  int32 page = 1;
+  int32 limit = 2;
+}
+
+message ListLocationsResponse {
+  repeated Location locations = 1;
+  int32 total = 2;
+}
+
+message MaintenanceRecord {
+  string id = 1;
+  string vehicle_id = 2;
+  string start_date = 3;
+  string end_date = 4;
+  string description = 5;
+  double cost = 6;
+  string status = 7;
+}
+
+message CreateMaintenanceRecordRequest {
+  string vehicle_id = 1;
+  string start_date = 2;
+  string end_date = 3;
+  string description = 4;
+  double cost = 5;
+  string status = 6;
+}
+
+message GetMaintenanceRecordRequest {
+  string id = 1;
+}
+
+message ListMaintenanceRecordsRequest {
+  string vehicle_id = 1;
+  int32 page = 2;
+  int32 limit = 3;
+}
+
+message ListMaintenanceRecordsResponse {
+  repeated MaintenanceRecord records = 1;
+  int32 total = 2;
+}
