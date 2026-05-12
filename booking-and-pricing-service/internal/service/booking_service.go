@@ -268,9 +268,9 @@ func (s *BookingService) ConfirmBookingPayment(ctx context.Context, bookingID, p
 // ── Availability & pricing ───────────────────────────────────────────────────
 
 type AvailabilityResult struct {
-	Available bool
-	Reason    string
-	Conflicts []domain.Booking
+	Available bool            `json:"available"`
+	Reason    string          `json:"reason"`
+	Conflicts []domain.Booking `json:"conflicts"`
 }
 
 func (s *BookingService) CheckAvailability(ctx context.Context, vehicleID string, start, end time.Time) (*AvailabilityResult, error) {
@@ -303,12 +303,12 @@ func (s *BookingService) CheckAvailability(ctx context.Context, vehicleID string
 }
 
 type PriceCalculation struct {
-	BasePrice          float64
-	SeasonalMultiplier float64
-	TotalPrice         float64
-	RentalDays         int
-	Currency           string
-	PricingTierID      string
+	BasePrice          float64 `json:"base_price"`
+	SeasonalMultiplier float64 `json:"seasonal_multiplier"`
+	TotalPrice         float64 `json:"total_price"`
+	RentalDays         int     `json:"rental_days"`
+	Currency           string  `json:"currency"`
+	PricingTierID      string  `json:"pricing_tier_id"`
 }
 
 func (s *BookingService) CalculatePrice(ctx context.Context, vehicleID string, start, end time.Time) (*PriceCalculation, error) {
@@ -354,15 +354,18 @@ func (s *BookingService) calculatePrice(ctx context.Context, vehicleID, category
 	cacheKey := fmt.Sprintf("pricing:category:%s", category)
 	var tiers []domain.PricingTier
 
-	cached, err := s.redisClient.Get(ctx, cacheKey).Bytes()
-	if err == nil {
-		if jsonErr := json.Unmarshal(cached, &tiers); jsonErr != nil {
-			log.Printf("pricing cache unmarshal error: %v", jsonErr)
+	if s.redisClient != nil {
+		cached, cacheErr := s.redisClient.Get(ctx, cacheKey).Bytes()
+		if cacheErr == nil {
+			if jsonErr := json.Unmarshal(cached, &tiers); jsonErr != nil {
+				log.Printf("pricing cache unmarshal error: %v", jsonErr)
+			}
 		}
 	}
 
 	// Cache miss – load from DB and store
 	if len(tiers) == 0 {
+		var err error
 		tiers, err = s.pricingRepo.GetTiersByCategory(ctx, category)
 		if err != nil {
 			return 0, nil, fmt.Errorf("get pricing tiers: %w", err)
@@ -372,7 +375,7 @@ func (s *BookingService) calculatePrice(ctx context.Context, vehicleID, category
 			tiers, _ = s.pricingRepo.GetTiersByCategory(ctx, "economy")
 		}
 
-		if payload, jsonErr := json.Marshal(tiers); jsonErr == nil {
+		if payload, jsonErr := json.Marshal(tiers); jsonErr == nil && s.redisClient != nil {
 			s.redisClient.Set(ctx, cacheKey, payload, 10*time.Minute)
 		}
 	}
@@ -413,17 +416,19 @@ func (s *BookingService) calculatePrice(ctx context.Context, vehicleID, category
 // ── Pricing tiers ────────────────────────────────────────────────────────────
 
 func (s *BookingService) GetActivePricingTiers(ctx context.Context, vehicleCategory string) ([]domain.PricingTier, error) {
-	// Cache-aside
 	cacheKey := fmt.Sprintf("pricing:active:%s", vehicleCategory)
-	cached, err := s.redisClient.Get(ctx, cacheKey).Bytes()
-	if err == nil {
-		var tiers []domain.PricingTier
-		if jsonErr := json.Unmarshal(cached, &tiers); jsonErr == nil {
-			return tiers, nil
+	if s.redisClient != nil {
+		cached, err := s.redisClient.Get(ctx, cacheKey).Bytes()
+		if err == nil {
+			var tiers []domain.PricingTier
+			if jsonErr := json.Unmarshal(cached, &tiers); jsonErr == nil {
+				return tiers, nil
+			}
 		}
 	}
 
 	var tiers []domain.PricingTier
+	var err error
 	if vehicleCategory != "" {
 		tiers, err = s.pricingRepo.GetTiersByCategory(ctx, vehicleCategory)
 	} else {
@@ -433,7 +438,7 @@ func (s *BookingService) GetActivePricingTiers(ctx context.Context, vehicleCateg
 		return nil, fmt.Errorf("get active pricing tiers: %w", err)
 	}
 
-	if payload, jsonErr := json.Marshal(tiers); jsonErr == nil {
+	if payload, jsonErr := json.Marshal(tiers); jsonErr == nil && s.redisClient != nil {
 		s.redisClient.Set(ctx, cacheKey, payload, 10*time.Minute)
 	}
 

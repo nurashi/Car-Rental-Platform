@@ -2,6 +2,7 @@ package http
 
 import (
 	"context"
+	"log"
 	"net/http"
 	"time"
 
@@ -120,6 +121,7 @@ func (h *Handler) createBooking(c *gin.Context) {
 			return
 		}
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create booking"})
+		log.Printf("create booking error: %v", err)
 		return
 	}
 	c.JSON(http.StatusCreated, gin.H{"booking": b})

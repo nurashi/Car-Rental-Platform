@@ -1,5 +1,5 @@
 services:
-  postgres:
+  postgres-identity:
     image: postgres:17-alpine
     environment:
       POSTGRES_USER: postgres
@@ -8,7 +8,39 @@ services:
     ports:
       - "5432:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - pgdata-identity:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres-vehicle:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: vehicle_db
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata-vehicle:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  postgres-booking:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: booking_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata-booking:/var/lib/postgresql/data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
@@ -32,6 +64,17 @@ services:
       - "8222:8222"
     command: ["--http_port", "8222"]
 
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus-data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+
   grafana:
     image: grafana/grafana:latest
     ports:
@@ -42,35 +85,107 @@ services:
     volumes:
       - grafana-data:/var/lib/grafana
     depends_on:
-      - postgres
+      - prometheus
 
   identity-service:
     build: ./identity-and-notification-service
     ports:
       - "8080:8080"
       - "50051:50051"
-    env_file: ./identity-and-notification-service/.env.docker
+    environment:
+      DB_HOST: postgres-identity
+      DB_PORT: "5432"
+      DB_NAME: identity_db
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      NATS_URL: nats://nats:4222
+      HTTP_PORT: "8080"
+      GRPC_PORT: "50051"
+      JWT_SECRET: default-secret
+      JWT_EXPIRY_HOURS: "24"
     depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      nats:
-
-  booking-and-pricing-service:
-    build: ./booking-and-pricing-service
-    ports:
-      - "8082:8082"
-      - "50053:50053"
-    env_file: ./booking-and-pricing-service/.env.docker
-    depends_on:
-      postgres:
+      postgres-identity:
         condition: service_healthy
       redis:
         condition: service_healthy
       nats:
         condition: service_started
 
+  vehicle-service:
+    build: ./vehicle-inventory-service
+    ports:
+      - "8081:8081"
+      - "50052:50052"
+    environment:
+      DB_HOST: postgres-vehicle
+      DB_PORT: "5432"
+      DB_NAME: vehicle_db
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      NATS_URL: nats://nats:4222
+      HTTP_PORT: "8081"
+      GRPC_PORT: "50052"
+      JWT_SECRET: default-secret
+    depends_on:
+      postgres-vehicle:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  booking-service:
+    build: ./booking-and-pricing-service
+    ports:
+      - "8082:8082"
+      - "50053:50053"
+    environment:
+      DB_HOST: postgres-booking
+      DB_PORT: "5432"
+      DB_NAME: booking_db
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      NATS_URL: nats://nats:4222
+      HTTP_PORT: "8082"
+      GRPC_PORT: "50053"
+      JWT_SECRET: default-secret
+      JWT_EXPIRY_HOURS: "24"
+      VEHICLE_SERVICE_ADDR: vehicle-service:50052
+    depends_on:
+      postgres-booking:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
+  api-gateway:
+    build: ./api-gateway
+    ports:
+      - "80:8080"
+    environment:
+      PORT: "8080"
+      IDENTITY_SERVICE_ADDR: identity-service:8080
+      VEHICLE_SERVICE_ADDR: vehicle-service:8081
+      BOOKING_SERVICE_ADDR: booking-service:8082
+      JWT_SECRET: default-secret
+    depends_on:
+      - identity-service
+      - vehicle-service
+      - booking-service
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3001:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:80/api/v1
+    depends_on:
+      - api-gateway
+
 volumes:
-  pgdata:
+  pgdata-identity:
+  pgdata-vehicle:
+  pgdata-booking:
   grafana-data:
+  prometheus-data:

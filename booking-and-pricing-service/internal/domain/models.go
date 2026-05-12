@@ -25,22 +25,22 @@ const (
 
 // Booking is the core aggregate of this service.
 type Booking struct {
-	ID                 string
-	UserID             string
-	VehicleID          string
-	Status             BookingStatus
-	StartDate          time.Time
-	EndDate            time.Time
-	TotalPrice         float64
-	Currency           string
-	PickupLocationID   string
-	DropoffLocationID  string
-	Notes              string
-	CancellationReason string
-	PaymentStatus      PaymentStatus
-	PaymentRef         string
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
+	ID                 string        `json:"id"`
+	UserID             string        `json:"user_id"`
+	VehicleID          string        `json:"vehicle_id"`
+	Status             BookingStatus `json:"status"`
+	StartDate          time.Time     `json:"start_date"`
+	EndDate            time.Time     `json:"end_date"`
+	TotalPrice         float64       `json:"total_price"`
+	Currency           string        `json:"currency"`
+	PickupLocationID   string        `json:"pickup_location_id"`
+	DropoffLocationID  string        `json:"dropoff_location_id"`
+	Notes              string        `json:"notes"`
+	CancellationReason string        `json:"cancellation_reason"`
+	PaymentStatus      PaymentStatus `json:"payment_status"`
+	PaymentRef         string        `json:"payment_ref"`
+	CreatedAt          time.Time     `json:"created_at"`
+	UpdatedAt          time.Time     `json:"updated_at"`
 }
 
 // RentalDays returns the number of days of the rental (minimum 1).

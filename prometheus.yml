@@ -1,0 +1,19 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: "identity-service"
+    static_configs:
+      - targets: ["identity-service:8080"]
+
+  - job_name: "vehicle-service"
+    static_configs:
+      - targets: ["vehicle-service:8081"]
+
+  - job_name: "booking-service"
+    static_configs:
+      - targets: ["booking-service:8082"]
+
+  - job_name: "api-gateway"
+    static_configs:
+      - targets: ["api-gateway:8080"]

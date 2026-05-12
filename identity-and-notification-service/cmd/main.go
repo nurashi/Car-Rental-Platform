@@ -18,6 +18,7 @@ import (
 	"github.com/nurashi/car-rental-identity/internal/db"
 	"github.com/nurashi/car-rental-identity/internal/db/migration"
 	"github.com/nurashi/car-rental-identity/internal/messaging"
+	"github.com/nurashi/car-rental-identity/internal/metrics"
 	"github.com/nurashi/car-rental-identity/internal/repository"
 	"github.com/nurashi/car-rental-identity/internal/service"
 )
@@ -70,6 +71,8 @@ func main() {
 
 	grpcHandler := grpcapi.NewServer(authService, userService, licenseService, notifRepo)
 	httpHandler := httpapi.NewHandler(authService, userService)
+	httpHandler.Engine().Use(metrics.Middleware())
+	httpHandler.Engine().GET("/metrics", metrics.Handler())
 
 	if pub != nil {
 		eventPub := messaging.NewEventPublisher(pub)

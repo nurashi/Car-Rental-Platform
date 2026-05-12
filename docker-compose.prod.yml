@@ -1,0 +1,110 @@
+services:
+  nats:
+    image: nats:2.10-alpine
+    container_name: vehicle-nats
+    restart: always
+    command: ["--http_port", "8222"]
+    networks:
+      - internal
+
+  identity-service:
+    build: ./identity-and-notification-service
+    container_name: vehicle-identity
+    restart: always
+    env_file:
+      - ./identity-and-notification-service/.env
+    environment:
+      HTTP_PORT: "8080"
+      GRPC_PORT: "50051"
+      NATS_URL: nats://nats:4222
+    networks:
+      - internal
+    depends_on:
+      nats:
+        condition: service_started
+
+  vehicle-service:
+    build: ./vehicle-inventory-service
+    container_name: vehicle-inventory
+    restart: always
+    env_file:
+      - ./vehicle-inventory-service/.env
+    environment:
+      HTTP_PORT: "8081"
+      GRPC_PORT: "50052"
+      NATS_URL: nats://nats:4222
+    networks:
+      - internal
+    depends_on:
+      nats:
+        condition: service_started
+
+  booking-service:
+    build: ./booking-and-pricing-service
+    container_name: vehicle-booking
+    restart: always
+    env_file:
+      - ./booking-and-pricing-service/.env
+    environment:
+      HTTP_PORT: "8082"
+      GRPC_PORT: "50053"
+      NATS_URL: nats://nats:4222
+      VEHICLE_SERVICE_ADDR: vehicle-service:50052
+    networks:
+      - internal
+    depends_on:
+      nats:
+        condition: service_started
+
+  api-gateway:
+    build: ./api-gateway
+    container_name: vehicle-gateway
+    restart: always
+    environment:
+      PORT: "8080"
+      IDENTITY_SERVICE_ADDR: identity-service:8080
+      VEHICLE_SERVICE_ADDR: vehicle-service:8081
+      BOOKING_SERVICE_ADDR: booking-service:8082
+      JWT_SECRET: "super-secret-jwt-key-change-in-production"
+    networks:
+      - internal
+      - proxy-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.vehicle-api.rule=Host(`vehicle-nurashi.abzy.kz`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.vehicle-api.entrypoints=web"
+      - "traefik.http.routers.vehicle-api.priority=20"
+      - "traefik.http.services.vehicle-api.loadbalancer.server.port=8080"
+      - "traefik.docker.network=proxy-net"
+    depends_on:
+      - identity-service
+      - vehicle-service
+      - booking-service
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: "/api/v1"
+    container_name: vehicle-frontend
+    restart: always
+    environment:
+      NEXT_PUBLIC_API_URL: "/api/v1"
+    networks:
+      - internal
+      - proxy-net
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.vehicle-frontend.rule=Host(`vehicle-nurashi.abzy.kz`)"
+      - "traefik.http.routers.vehicle-frontend.entrypoints=web"
+      - "traefik.http.routers.vehicle-frontend.priority=10"
+      - "traefik.http.services.vehicle-frontend.loadbalancer.server.port=3000"
+      - "traefik.docker.network=proxy-net"
+    depends_on:
+      - api-gateway
+
+networks:
+  internal:
+    driver: bridge
+  proxy-net:
+    external: true

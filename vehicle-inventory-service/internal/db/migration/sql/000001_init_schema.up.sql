@@ -1,0 +1,33 @@
+CREATE TABLE locations (
+    id VARCHAR(36) PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    address TEXT NOT NULL,
+    capacity INT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE vehicles (
+    id VARCHAR(36) PRIMARY KEY,
+    make VARCHAR(100) NOT NULL,
+    model VARCHAR(100) NOT NULL,
+    year INT NOT NULL,
+    license_plate VARCHAR(50) UNIQUE NOT NULL,
+    status VARCHAR(50) NOT NULL,
+    current_location_id VARCHAR(36) REFERENCES locations(id),
+    mileage INT NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE maintenance_records (
+    id VARCHAR(36) PRIMARY KEY,
+    vehicle_id VARCHAR(36) REFERENCES vehicles(id) ON DELETE CASCADE,
+    start_date DATE NOT NULL,
+    end_date DATE,
+    description TEXT,
+    cost DECIMAL(10, 2),
+    status VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);

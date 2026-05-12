@@ -18,6 +18,13 @@ type BookingRepo struct {
 	pool *pgxpool.Pool
 }
 
+func nullString(s string) interface{} {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
 func NewBookingRepo(pool *pgxpool.Pool) *BookingRepo {
 	return &BookingRepo{pool: pool}
 }
@@ -43,8 +50,8 @@ func (r *BookingRepo) Create(ctx context.Context, b *domain.Booking) error {
 	_, err := r.pool.Exec(ctx, query,
 		b.ID, b.UserID, b.VehicleID, string(b.Status),
 		b.StartDate, b.EndDate, b.TotalPrice, b.Currency,
-		b.PickupLocationID, b.DropoffLocationID,
-		b.Notes, string(b.PaymentStatus),
+		nullString(b.PickupLocationID), nullString(b.DropoffLocationID),
+		nullString(b.Notes), string(b.PaymentStatus),
 		b.CreatedAt, b.UpdatedAt,
 	)
 	if err != nil {
@@ -56,8 +63,13 @@ func (r *BookingRepo) Create(ctx context.Context, b *domain.Booking) error {
 func (r *BookingRepo) GetByID(ctx context.Context, id string) (*domain.Booking, error) {
 	query := `
 		SELECT id, user_id, vehicle_id, status, start_date, end_date,
-		       total_price, currency, pickup_location_id, dropoff_location_id,
-		       notes, cancellation_reason, payment_status, payment_ref,
+		       total_price, currency,
+		       COALESCE(pickup_location_id::text, ''),
+		       COALESCE(dropoff_location_id::text, ''),
+		       COALESCE(notes, ''),
+		       COALESCE(cancellation_reason, ''),
+		       payment_status,
+		       COALESCE(payment_ref, ''),
 		       created_at, updated_at
 		FROM bookings WHERE id = $1
 	`
@@ -75,8 +87,8 @@ func (r *BookingRepo) Update(ctx context.Context, b *domain.Booking) error {
 		WHERE id=$1
 	`
 	result, err := r.pool.Exec(ctx, query,
-		b.ID, b.StartDate, b.EndDate, b.Notes,
-		b.PickupLocationID, b.DropoffLocationID,
+		b.ID, b.StartDate, b.EndDate, nullString(b.Notes),
+		nullString(b.PickupLocationID), nullString(b.DropoffLocationID),
 		b.TotalPrice, b.UpdatedAt,
 	)
 	if err != nil {
@@ -124,8 +136,13 @@ func (r *BookingRepo) ListByUserID(ctx context.Context, userID string, page, pag
 
 	listQuery := `
 		SELECT id, user_id, vehicle_id, status, start_date, end_date,
-		       total_price, currency, pickup_location_id, dropoff_location_id,
-		       notes, cancellation_reason, payment_status, payment_ref,
+		       total_price, currency,
+		       COALESCE(pickup_location_id::text, ''),
+		       COALESCE(dropoff_location_id::text, ''),
+		       COALESCE(notes, ''),
+		       COALESCE(cancellation_reason, ''),
+		       payment_status,
+		       COALESCE(payment_ref, ''),
 		       created_at, updated_at
 		FROM bookings WHERE user_id = $1
 	`
@@ -159,8 +176,13 @@ func (r *BookingRepo) ListByUserID(ctx context.Context, userID string, page, pag
 func (r *BookingRepo) CheckConflict(ctx context.Context, vehicleID, excludeBookingID string, start, end interface{}) ([]domain.Booking, error) {
 	query := `
 		SELECT id, user_id, vehicle_id, status, start_date, end_date,
-		       total_price, currency, pickup_location_id, dropoff_location_id,
-		       notes, cancellation_reason, payment_status, payment_ref,
+		       total_price, currency,
+		       COALESCE(pickup_location_id::text, ''),
+		       COALESCE(dropoff_location_id::text, ''),
+		       COALESCE(notes, ''),
+		       COALESCE(cancellation_reason, ''),
+		       payment_status,
+		       COALESCE(payment_ref, ''),
 		       created_at, updated_at
 		FROM bookings
 		WHERE vehicle_id = $1
@@ -193,8 +215,13 @@ func (r *BookingRepo) ExtendBooking(ctx context.Context, id string, newEnd inter
 		SET end_date=$2, updated_at=$3
 		WHERE id=$1 AND status IN ('pending','confirmed','active')
 		RETURNING id, user_id, vehicle_id, status, start_date, end_date,
-		          total_price, currency, pickup_location_id, dropoff_location_id,
-		          notes, cancellation_reason, payment_status, payment_ref,
+		          total_price, currency,
+		          COALESCE(pickup_location_id::text, ''),
+		          COALESCE(dropoff_location_id::text, ''),
+		          COALESCE(notes, ''),
+		          COALESCE(cancellation_reason, ''),
+		          payment_status,
+		          COALESCE(payment_ref, ''),
 		          created_at, updated_at
 	`
 	row := r.pool.QueryRow(ctx, query, id, newEnd, time.Now())
@@ -207,8 +234,13 @@ func (r *BookingRepo) ConfirmPayment(ctx context.Context, id, paymentMethod, pay
 		SET status='confirmed', payment_status='paid', payment_ref=$2, updated_at=$3
 		WHERE id=$1 AND status='pending'
 		RETURNING id, user_id, vehicle_id, status, start_date, end_date,
-		          total_price, currency, pickup_location_id, dropoff_location_id,
-		          notes, cancellation_reason, payment_status, payment_ref,
+		          total_price, currency,
+		          COALESCE(pickup_location_id::text, ''),
+		          COALESCE(dropoff_location_id::text, ''),
+		          COALESCE(notes, ''),
+		          COALESCE(cancellation_reason, ''),
+		          payment_status,
+		          COALESCE(payment_ref, ''),
 		          created_at, updated_at
 	`
 	row := r.pool.QueryRow(ctx, query, id, paymentRef, time.Now())
@@ -218,8 +250,13 @@ func (r *BookingRepo) ConfirmPayment(ctx context.Context, id, paymentMethod, pay
 func (r *BookingRepo) ListByVehicleAndDateRange(ctx context.Context, vehicleID string, start, end interface{}) ([]domain.Booking, error) {
 	query := `
 		SELECT id, user_id, vehicle_id, status, start_date, end_date,
-		       total_price, currency, pickup_location_id, dropoff_location_id,
-		       notes, cancellation_reason, payment_status, payment_ref,
+		       total_price, currency,
+		       COALESCE(pickup_location_id::text, ''),
+		       COALESCE(dropoff_location_id::text, ''),
+		       COALESCE(notes, ''),
+		       COALESCE(cancellation_reason, ''),
+		       payment_status,
+		       COALESCE(payment_ref, ''),
 		       created_at, updated_at
 		FROM bookings
 		WHERE vehicle_id = $1

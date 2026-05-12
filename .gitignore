@@ -1,4 +1,18 @@
+# Environment files (credentials — DO NOT COMMIT)
 .env
+.env.local
+.env.docker
+.env.production
+
+# Node modules
+node_modules/
+.next/
+
+# Seeds (generated data)
+seed_vehicles.sql
+seed_locations.sql
+
+# Binaries & build
 *.exe
 *.exe~
 *.dll
@@ -6,7 +20,8 @@
 *.dylib
 *.test
 vendor/
+
+# Logs & temp
 *.log
 tmp/
 .claude/
-.env.docker

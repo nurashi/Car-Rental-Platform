@@ -18,6 +18,7 @@ import (
 	"github.com/nurashi/car-rental-booking/internal/db"
 	"github.com/nurashi/car-rental-booking/internal/db/migration"
 	"github.com/nurashi/car-rental-booking/internal/messaging"
+	"github.com/nurashi/car-rental-booking/internal/metrics"
 	"github.com/nurashi/car-rental-booking/internal/repository"
 	"github.com/nurashi/car-rental-booking/internal/service"
 	"github.com/redis/go-redis/v9"
@@ -106,6 +107,8 @@ func main() {
 	// ── gRPC server ───────────────────────────────────────────────────────────
 	grpcHandler := grpcapi.NewServer(bookingSvc)
 	httpHandler := httpapi.NewHandler(bookingSvc, cfg.JWTSecret)
+	httpHandler.Engine().Use(metrics.Middleware())
+	httpHandler.Engine().GET("/metrics", metrics.Handler())
 
 	go func() {
 		addr := ":" + cfg.GRPCPort
