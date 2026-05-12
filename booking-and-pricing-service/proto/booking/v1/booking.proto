@@ -1,0 +1,188 @@
+syntax = "proto3";
+
+package booking.v1;
+
+option go_package = "github.com/nurashi/car-rental-booking/internal/api/grpc/pb;pb";
+
+service BookingService {
+  rpc CreateBooking(CreateBookingRequest) returns (BookingResponse) {}
+  rpc GetBooking(GetBookingRequest) returns (BookingResponse) {}
+  rpc UpdateBooking(UpdateBookingRequest) returns (BookingResponse) {}
+  rpc CancelBooking(CancelBookingRequest) returns (CancelBookingResponse) {}
+  rpc ListUserBookings(ListUserBookingsRequest) returns (ListUserBookingsResponse) {}
+  rpc CalculatePrice(CalculatePriceRequest) returns (CalculatePriceResponse) {}
+  rpc CheckAvailability(CheckAvailabilityRequest) returns (CheckAvailabilityResponse) {}
+  rpc ExtendBooking(ExtendBookingRequest) returns (BookingResponse) {}
+  rpc GetActivePricingTiers(GetActivePricingTiersRequest) returns (GetActivePricingTiersResponse) {}
+  rpc ProcessRefund(ProcessRefundRequest) returns (ProcessRefundResponse) {}
+  rpc GetBookingHistory(GetBookingHistoryRequest) returns (GetBookingHistoryResponse) {}
+  rpc ConfirmBookingPayment(ConfirmBookingPaymentRequest) returns (BookingResponse) {}
+}
+
+// ── Booking messages ────────────────────────────────────────────────────────
+
+message CreateBookingRequest {
+  string user_id      = 1;
+  string vehicle_id   = 2;
+  string start_date   = 3;  // RFC3339
+  string end_date     = 4;  // RFC3339
+  string pickup_location_id   = 5;
+  string dropoff_location_id  = 6;
+  string notes        = 7;
+}
+
+message GetBookingRequest {
+  string booking_id = 1;
+}
+
+message UpdateBookingRequest {
+  string booking_id           = 1;
+  optional string start_date  = 2;
+  optional string end_date    = 3;
+  optional string notes       = 4;
+  optional string pickup_location_id  = 5;
+  optional string dropoff_location_id = 6;
+}
+
+message CancelBookingRequest {
+  string booking_id = 1;
+  string reason     = 2;
+}
+
+message CancelBookingResponse {
+  string message    = 1;
+  bool   refundable = 2;
+}
+
+message ListUserBookingsRequest {
+  string user_id   = 1;
+  int32  page      = 2;
+  int32  page_size = 3;
+  string status    = 4; // filter: "", "pending", "confirmed", "active", "completed", "cancelled"
+}
+
+message ListUserBookingsResponse {
+  repeated Booking bookings = 1;
+  int32 total = 2;
+}
+
+// ── Pricing messages ─────────────────────────────────────────────────────────
+
+message CalculatePriceRequest {
+  string vehicle_id = 1;
+  string start_date = 2;
+  string end_date   = 3;
+}
+
+message CalculatePriceResponse {
+  double base_price       = 1;
+  double seasonal_multiplier = 2;
+  double total_price      = 3;
+  int32  rental_days      = 4;
+  string currency         = 5;
+  string pricing_tier_id  = 6;
+}
+
+message CheckAvailabilityRequest {
+  string vehicle_id = 1;
+  string start_date = 2;
+  string end_date   = 3;
+}
+
+message CheckAvailabilityResponse {
+  bool   available      = 1;
+  string reason         = 2;
+  repeated ConflictingBooking conflicts = 3;
+}
+
+message ConflictingBooking {
+  string booking_id = 1;
+  string start_date = 2;
+  string end_date   = 3;
+}
+
+message ExtendBookingRequest {
+  string booking_id   = 1;
+  string new_end_date = 2;
+}
+
+message GetActivePricingTiersRequest {
+  string vehicle_category = 1; // optional filter
+}
+
+message GetActivePricingTiersResponse {
+  repeated PricingTier tiers = 1;
+}
+
+message ProcessRefundRequest {
+  string booking_id      = 1;
+  double refund_amount   = 2;
+  string reason          = 3;
+}
+
+message ProcessRefundResponse {
+  string refund_id     = 1;
+  double amount        = 2;
+  string status        = 3;
+  string message       = 4;
+}
+
+message GetBookingHistoryRequest {
+  string user_id   = 1;
+  int32  page      = 2;
+  int32  page_size = 3;
+}
+
+message GetBookingHistoryResponse {
+  repeated BookingHistoryEntry entries = 1;
+  int32 total = 2;
+}
+
+message BookingHistoryEntry {
+  Booking booking     = 1;
+  repeated string events = 2; // e.g. ["created", "confirmed", "completed"]
+}
+
+message ConfirmBookingPaymentRequest {
+  string booking_id      = 1;
+  string payment_method  = 2;
+  string payment_ref     = 3;
+}
+
+// ── Domain types ─────────────────────────────────────────────────────────────
+
+message Booking {
+  string id                   = 1;
+  string user_id              = 2;
+  string vehicle_id           = 3;
+  string status               = 4;
+  string start_date           = 5;
+  string end_date             = 6;
+  double total_price          = 7;
+  string currency             = 8;
+  string pickup_location_id   = 9;
+  string dropoff_location_id  = 10;
+  string notes                = 11;
+  string cancellation_reason  = 12;
+  string payment_status       = 13;
+  string payment_ref          = 14;
+  int64  created_at           = 15;
+  int64  updated_at           = 16;
+}
+
+message BookingResponse {
+  Booking booking = 1;
+}
+
+message PricingTier {
+  string id                 = 1;
+  string name               = 2;
+  string vehicle_category   = 3;
+  double base_daily_rate    = 4;
+  double seasonal_multiplier = 5;
+  string season_start       = 6;  // "MM-DD"
+  string season_end         = 7;  // "MM-DD"
+  bool   is_active          = 8;
+  int64  created_at         = 9;
+  int64  updated_at         = 10;
+}

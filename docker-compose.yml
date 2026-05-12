@@ -57,6 +57,20 @@ services:
         condition: service_healthy
       nats:
 
+  booking-and-pricing-service:
+    build: ./booking-and-pricing-service
+    ports:
+      - "8082:8082"
+      - "50053:50053"
+    env_file: ./booking-and-pricing-service/.env.docker
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_started
+
 volumes:
   pgdata:
   grafana-data:
